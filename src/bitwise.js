@@ -12,7 +12,7 @@ var mask=new Uint32Array([
 ]);
 
 function oggpack_writeinit(b) {
-  zeroclear(b);
+  oggpack_buffer(b);
   b.ptr=b.buffer = new Uint8Array(BUFFER_INCREMENT);
   b.storage=BUFFER_INCREMENT;
 }
@@ -128,11 +128,11 @@ function oggpack_reset(b) {
 }
 
 function oggpack_writeclear(b) {
-  zeroclear(b);
+  oggpack_buffer(b);
 }
 
 function oggpack_readinit(b, buf, bytes) {
-  zeroclear(b);
+  oggpack_buffer(b);
   b.buffer=b.ptr=new Uint8Array(buf.buffer);
   b.storage=bytes;
 }

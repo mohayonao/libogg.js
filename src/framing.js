@@ -135,7 +135,7 @@ var crc_lookup=new Uint32Array([
 /* init the encode/decode logical stream state */
 function ogg_stream_init(os, serialno) {
   if(os){
-    zeroclear(os);
+    ogg_stream_state(os);
     os.body_storage=16*1024;
     os.lacing_storage=1024;
     
@@ -164,14 +164,14 @@ function ogg_stream_check(os) {
 /* _clear does not free os, only the non-flat storage within */
 function ogg_stream_clear(os) {
   if(os){
-    zeroclear(os);
+    ogg_stream_state(os);
   }
   return(0);
 }
 
 function ogg_stream_destroy(os) {
   if(os){
-    zeroclear(os);
+    ogg_stream_state(os);
   }
   return(0);
 }
@@ -293,7 +293,7 @@ function ogg_stream_iovecin(os, iov, count, e_o_s, granulepos) {
 }
 
 function ogg_stream_packetin(os, op) {
-  var iov = {};
+  var iov = ogg_iovec_t();
   iov.iov_base = op.packet;
   iov.iov_len = op.bytes;
   return ogg_stream_iovecin(os, [iov], 1, op.e_o_s, op.granulepos);
@@ -509,7 +509,7 @@ function ogg_stream_eos(os) {
 function ogg_sync_init(oy) {
   if(oy){
     oy.storage = -1; /* used as a readiness flag */
-    zeroclear(oy);
+    ogg_sync_state(oy);
   }
   return(0);
 }
@@ -517,7 +517,7 @@ function ogg_sync_init(oy) {
 /* clear non-flat storage within */
 function ogg_sync_clear(oy) {
   if(oy){
-    zeroclear(oy);
+    ogg_sync_state(oy);
   }
   return(0);
 }
@@ -950,5 +950,5 @@ function ogg_stream_packetpeek(os, op) {
 }
 
 function ogg_packet_clear(op) {
-  zeroclear(op);
+  ogg_packet(op);
 }
