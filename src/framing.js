@@ -586,81 +586,81 @@ function ogg_sync_pageseek(oy, og) {
   var page=pointer(oy.data, oy.returned, oy.fill-oy.returned);
   var next;
   var bytes=oy.fill - oy.returned;
-
+  var i,imax;
+  
   if(ogg_sync_check(oy))return 0;
-  
-  if(oy.headerbytes===0){
-    var headerbytes,i;
-    if(bytes<27)return(0); /* not enough for a header */
-    
-    /* verify capture pattern */
-    if(String.fromCharCode(page[0],page[1],page[2],page[3])!=="OggS"){
-      return _ogg_sync_pageseek_sync_fail(oy,page);
-    }
-    
-    headerbytes=page[26]+27;
-    if (bytes<headerbytes)return(0); /* not enough for header + seg table */
-    
-    /* count up body length in the segment table */
-    
-    for(i=0;i<page[26];i++)
-      oy.bodybytes+=page[27+i];
-    oy.headerbytes=headerbytes;
-  }
-  
-  if(oy.bodybytes+oy.headerbytes>bytes)return(0);
-  
-  /* The whole test page is buffered.  Verify the checksum */
-  {
-    /* Grab the checksum bytes, set the header field to zero */
-    var chksum = [page[22],page[23],page[24],page[25]];
-    var log = ogg_page();
-    
-    page[22]=page[23]=page[24]=page[25]=0;
-    
-    /* set up a temp page struct and recompute the checksum */
-    log.header=pointer(page,0,oy.headerbytes);
-    log.header_len=oy.headerbytes;
-    log.body=pointer(page, oy.headerbytes,oy.bodybytes);
-    log.body_len=oy.bodybytes;
-    ogg_page_checksum_set(log);
-    
-    /* Compare */
-    // if (memcmp(chksum,page+22,4)){
-    if (chksum[0]!==page[22]||chksum[1]!==page[23]||chksum[2]!==page[24]||chksum[3]!==page[25]){
-      /* D'oh.  Mismatch! Corrupt page (or miscapture and not a page
-         at all) */
-      /* replace the computed checksum with the one actually read in */
-      
-      page[22]=chksum[0];
-      page[23]=chksum[1];
-      page[24]=chksum[2];
-      page[25]=chksum[3];
-      
-      /* Bad checksum. Lose sync */
-      return _ogg_sync_pageseek_sync_fail(oy,page);
-    }
-  }
-  
-  /* yes, have a whole page all ready to go */
-  {
-    if(og){
-      og.header=pointer(page,0,oy.headerbytes);
-      og.header_len=oy.headerbytes;
-      og.body=pointer(page,oy.headerbytes,oy.bodybytes);
-      og.body_len=oy.bodybytes;
-    }
-    
-    oy.unsynced=0;
-    oy.returned+=(bytes=oy.headerbytes+oy.bodybytes);
-    oy.headerbytes=0;
-    oy.bodybytes=0;
-    return(bytes);
-  }
-}
 
-function _ogg_sync_pageseek_sync_fail(oy, page) {
-  var next, i, imax;
+  err:while(1){
+    if(oy.headerbytes===0){
+      var headerbytes;
+      if(bytes<27)return(0); /* not enough for a header */
+      
+      /* verify capture pattern */
+      if(String.fromCharCode(page[0],page[1],page[2],page[3])!=="OggS")break err; // sync_fail
+      
+      headerbytes=page[26]+27;
+      if (bytes<headerbytes)return(0); /* not enough for header + seg table */
+      
+      /* count up body length in the segment table */
+      
+      for(i=0;i<page[26];i++)
+        oy.bodybytes+=page[27+i];
+      oy.headerbytes=headerbytes;
+    }
+    
+    if(oy.bodybytes+oy.headerbytes>bytes)return(0);
+    
+    /* The whole test page is buffered.  Verify the checksum */
+    {
+      /* Grab the checksum bytes, set the header field to zero */
+      var chksum = [page[22],page[23],page[24],page[25]];
+      var log = ogg_page();
+      
+      page[22]=page[23]=page[24]=page[25]=0;
+      
+      /* set up a temp page struct and recompute the checksum */
+      log.header=pointer(page,0,oy.headerbytes);
+      log.header_len=oy.headerbytes;
+      log.body=pointer(page, oy.headerbytes,oy.bodybytes);
+      log.body_len=oy.bodybytes;
+      ogg_page_checksum_set(log);
+      
+      /* Compare */
+      // if (memcmp(chksum,page+22,4)){
+      if (chksum[0]!==page[22]||chksum[1]!==page[23]||chksum[2]!==page[24]||chksum[3]!==page[25]){
+        /* D'oh.  Mismatch! Corrupt page (or miscapture and not a page
+           at all) */
+        /* replace the computed checksum with the one actually read in */
+        
+        page[22]=chksum[0];
+        page[23]=chksum[1];
+        page[24]=chksum[2];
+        page[25]=chksum[3];
+        
+        /* Bad checksum. Lose sync */
+        break err; // sync_fail
+      }
+    }
+    
+    /* yes, have a whole page all ready to go */
+    {
+      if(og){
+        og.header=pointer(page,0,oy.headerbytes);
+        og.header_len=oy.headerbytes;
+        og.body=pointer(page,oy.headerbytes,oy.bodybytes);
+        og.body_len=oy.bodybytes;
+      }
+      
+      oy.unsynced=0;
+      oy.returned+=(bytes=oy.headerbytes+oy.bodybytes);
+      oy.headerbytes=0;
+      oy.bodybytes=0;
+      return(bytes);
+    }
+  }
+  
+  //err:
+  
   oy.headerbytes=0;
   oy.bodybytes=0;
   

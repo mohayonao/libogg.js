@@ -35,45 +35,48 @@ function oggpack_writetrunc(b, bits) {
 
 /* Takes only up to 32 bits. */
 function oggpack_write(b, value, bits) {
-  if(bits<0 || bits>32) return _oggpack_write_err(b);
-  if(b.endbyte>=b.storage-4){
-    var ret;
-    if(!b.ptr)return;
-    if(b.storage>LONG_MAX-BUFFER_INCREMENT) return _oggpack_write_err(b);
-    ret=realloc(b.buffer,b.storage+BUFFER_INCREMENT);
-    if(!ret) return _oggpack_write_err(b);
-    b.buffer=ret;
-    b.storage+=BUFFER_INCREMENT;
-    b.ptr=pointer(b.buffer,b.endbyte);
-  }
-  
-  value&=mask[bits];
-  bits+=b.endbit;
-  
-  b.ptr[0]|=value<<b.endbit;
-  
-  if(bits>=8){
-    b.ptr[1]=value>>(8-b.endbit);
-    if(bits>=16){
-      b.ptr[2]=value>>(16-b.endbit);
-      if(bits>=24){
-        b.ptr[3]=value>>(24-b.endbit);
-        if(bits>=32){
-          if(b.endbit)
-            b.ptr[4]=value>>(32-b.endbit);
-          else
-            b.ptr[4]=0;
+  err:while(1){
+    if(bits<0 || bits>32) break err;
+    if(b.endbyte>=b.storage-4){
+      var ret;
+      if(!b.ptr)return;
+      if(b.storage>LONG_MAX-BUFFER_INCREMENT) break err;
+      ret=realloc(b.buffer,b.storage+BUFFER_INCREMENT);
+      if(!ret) break err;
+      b.buffer=ret;
+      b.storage+=BUFFER_INCREMENT;
+      b.ptr=pointer(b.buffer,b.endbyte);
+    }
+    
+    value&=mask[bits];
+    bits+=b.endbit;
+    
+    b.ptr[0]|=value<<b.endbit;
+    
+    if(bits>=8){
+      b.ptr[1]=value>>(8-b.endbit);
+      if(bits>=16){
+        b.ptr[2]=value>>(16-b.endbit);
+        if(bits>=24){
+          b.ptr[3]=value>>(24-b.endbit);
+          if(bits>=32){
+            if(b.endbit)
+              b.ptr[4]=value>>(32-b.endbit);
+            else
+              b.ptr[4]=0;
+          }
         }
       }
     }
+    
+    var shift=_int(bits/8);
+    b.endbyte+=shift;
+    b.ptr=pointer(b.ptr,shift);
+    b.endbit=bits&7;
+    return;
   }
   
-  var shift=_int(bits/8);
-  b.endbyte+=shift;
-  b.ptr=pointer(b.ptr,shift);
-  b.endbit=bits&7;
-}
-function _oggpack_write_err(b) {
+  // err:
   oggpack_writeclear(b);
 }
 
@@ -88,35 +91,38 @@ function oggpack_writecopy(b, source, bits) {
   
   var bytes=_int(bits/8);
   bits-=bytes*8;
-  
-  if(b.endbit){
-    var i;
-    /* unaligned copy.  Do it the hard way. */
-    for(i=0;i<bytes;i++)
-      oggpack_write(b,ptr[i],8);
-  }else{
-    /* aligned block copy */
-    if(b.endbyte+bytes+1>=b.storage){
-      var ret;
-      if(!b.ptr) return _oggpack_writecopy_err(b);
-      if(b.endbyte+bytes+BUFFER_INCREMENT>b.storage) return _oggpack_writecopy_err(b);
-      b.storage=b.endbyte+bytes+BUFFER_INCREMENT;
-      ret=realloc(b.buffer,b.storage);
-      if(!ret) return _oggpack_writecopy_err(b);
-      b.buffer=ret;
-      b.ptr=pointer(b.buffer,b.endbyte);
+
+  err:while(1){
+    if(b.endbit){
+      var i;
+      /* unaligned copy.  Do it the hard way. */
+      for(i=0;i<bytes;i++)
+        oggpack_write(b,ptr[i],8);
+    }else{
+      /* aligned block copy */
+      if(b.endbyte+bytes+1>=b.storage){
+        var ret;
+        if(!b.ptr) break err;
+        if(b.endbyte+bytes+BUFFER_INCREMENT>b.storage) break err;
+        b.storage=b.endbyte+bytes+BUFFER_INCREMENT;
+        ret=realloc(b.buffer,b.storage);
+        if(!ret) break err;
+        b.buffer=ret;
+        b.ptr=pointer(b.buffer,b.endbyte);
+      }
+      
+      copy(b.ptr,source.subarray(0,bytes));
+      b.ptr=pointer(b.ptr, bytes);
+      b.endbyte+=bytes;
+      b.ptr[0]=0;
     }
     
-    copy(b.ptr,source.subarray(0,bytes));
-    b.ptr=pointer(b.ptr, bytes);
-    b.endbyte+=bytes;
-    b.ptr[0]=0;
+    if (bits)
+      oggpack_write(b,ptr[bytes], bits);
+    return;
   }
   
-  if (bits)
-    oggpack_write(b,ptr[bytes], bits);
-}
-function _oggpack_writecopy_err(b) {
+  // err:
   oggpack_writeclear(b);
 }
 
@@ -175,15 +181,18 @@ function oggpack_look1(b) {
 
 function oggpack_adv(b, bits) {
   bits+=b.endbit;
-  
-  if(b.endbyte > b.storage-((bits+7)>>3)) return _oggpack_adv_overflow(b);
-  
-  var shift=_int(bits/8);
-  b.ptr=pointer(b.ptr,shift);
-  b.endbyte+=shift;
-  b.endbit=bits&7;
-}
-function _oggpack_adv_overflow(b) {
+
+  err:while(1){
+    if(b.endbyte > b.storage-((bits+7)>>3)) break err;
+    
+    var shift=_int(bits/8);
+    b.ptr=pointer(b.ptr,shift);
+    b.endbyte+=shift;
+    b.endbit=bits&7;
+    return;
+  }
+
+  // overflow:
   b.ptr=NULL;
   b.endbyte=b.storage;
   b.endbit=1;
@@ -201,41 +210,43 @@ function oggpack_adv1(b) {
 function oggpack_read(b, bits) {
   var ret, m;
   
-  if (bits<0 || bits>32) return _oggpack_read_err(b);
-  m=mask[bits];
-  bits+=b.endbit;
-  
-  if(b.endbyte>=b.storage-4){
-    /* not the main path */
-    if(b.endbyte > b.storage-((bits+7)>>3)) return _oggpack_read_err(b);
-    /* special case to avoid reading b.ptr[0], which might be past the end of
-       the buffer; also skips some useless accounting */
-    else if(!bits)return(0);
-  }
-  
-  ret=b.ptr[0]>>b.endbit;
-  if(bits>8){
-    ret|=b.ptr[1]<<(8-b.endbit);
-    if(bits>16){
-      ret|=b.ptr[2]<<(16-b.endbit);
-      if(bits>24){
-        ret|=b.ptr[3]<<(24-b.endbit);
-        if(bits>32 && b.endbit){
-          ret|=b.ptr[4]<<(32-b.endbit);
+  err:while(1){
+    if (bits<0 || bits>32) break err;
+    m=mask[bits];
+    bits+=b.endbit;
+    
+    if(b.endbyte>=b.storage-4){
+      /* not the main path */
+      if(b.endbyte > b.storage-((bits+7)>>3)) break err; // overflow
+      /* special case to avoid reading b.ptr[0], which might be past the end of
+         the buffer; also skips some useless accounting */
+      else if(!bits)return(0);
+    }
+    
+    ret=b.ptr[0]>>b.endbit;
+    if(bits>8){
+      ret|=b.ptr[1]<<(8-b.endbit);
+      if(bits>16){
+        ret|=b.ptr[2]<<(16-b.endbit);
+        if(bits>24){
+          ret|=b.ptr[3]<<(24-b.endbit);
+          if(bits>32 && b.endbit){
+            ret|=b.ptr[4]<<(32-b.endbit);
+          }
         }
       }
     }
+    ret&=m;
+    
+    var shift=_int(bits/8);
+    b.ptr=pointer(b.ptr,shift);
+    b.endbyte+=shift;
+    b.endbit=bits&7;
+    
+    return ret;
   }
-  ret&=m;
   
-  var shift=_int(bits/8);
-  b.ptr=pointer(b.ptr,shift);
-  b.endbyte+=shift;
-  b.endbit=bits&7;
-  
-  return ret;
-}
-function _oggpack_read_err(b) {
+  // err:
   b.ptr=NULL;
   b.endbyte=b.storage;
   b.endbit=1;
@@ -245,18 +256,20 @@ function _oggpack_read_err(b) {
 function oggpack_read1(b) {
   var ret;
   
-  if(b.endbyte>=b.storage) return _oggpack_read1_err(b);
-  ret=(b.ptr[0]>>b.endbit)&1;
-  
-  b.endbit++;
-  if(b.endbit>7){
-    b.endbit=0;
-    b.ptr=pointer(b.ptr,1);
-    b.endbyte++;
+  err:while(1){
+    if(b.endbyte>=b.storage) break err; // overflow
+    ret=(b.ptr[0]>>b.endbit)&1;
+    
+    b.endbit++;
+    if(b.endbit>7){
+      b.endbit=0;
+      b.ptr=pointer(b.ptr,1);
+      b.endbyte++;
+    }
+    return ret;
   }
-  return ret;
-}
-function _oggpack_read1_err(b) {
+
+  // err:
   b.ptr=NULL;
   b.endbyte=b.storage;
   b.endbit=1;
