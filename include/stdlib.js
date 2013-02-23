@@ -25,7 +25,3 @@ function realloc(src, newSize) {
 function copy(dst, src, offset) {
   dst.set(src, offset||0);
 }
-
-function zeroclear(buf) {
-  buf.constructor.zeroclear(buf);
-}
