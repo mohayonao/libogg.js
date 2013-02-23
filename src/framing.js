@@ -139,9 +139,9 @@ function ogg_stream_init(os, serialno) {
     os.body_storage=16*1024;
     os.lacing_storage=1024;
     
-    os.body_data=new Uint8Array(os.body_storage);
-    os.lacing_vals=new Int32Array(os.lacing_storage);
-    os.granule_vals=new Int32Array(os.lacing_storage); // int64??
+    os.body_data=calloc(os.body_storage, uint8);
+    os.lacing_vals=calloc(os.lacing_storage, int32);
+    os.granule_vals=calloc(os.lacing_storage, int32); // int64??
     
     if (!os.body_data || !os.lacing_vals || !os.granule_vals) {
       ogg_stream_clear(os);
@@ -553,7 +553,7 @@ function ogg_sync_buffer(oy, size) {
     if(oy.data)
       ret=realloc(oy.data, newsize);
     else
-      ret=new Uint8Array(newsize);
+      ret=calloc(newsize, uint8);
     if(!ret){
       ogg_sync_clear(oy);
       return NULL;
@@ -614,7 +614,7 @@ function ogg_sync_pageseek(oy, og) {
   {
     /* Grab the checksum bytes, set the header field to zero */
     var chksum = [page[22],page[23],page[24],page[25]];
-    var log = new OggPage();
+    var log = ogg_page();
     
     page[22]=page[23]=page[24]=page[25]=0;
     

@@ -16,6 +16,17 @@ function pointer(src, offset, length) {
   }
 }
 
+var uint8 = 0;
+var int32 = 1;
+
+function calloc(n, size) {
+  switch (size) {
+  case uint8: return new Uint8Array(n);
+  case int32: return new Int32Array(n);
+  }
+  throw new Error("calloc failed.");
+}
+
 function realloc(src, newSize) {
   var ret = new src.constructor(newSize);
   ret.set(src);
