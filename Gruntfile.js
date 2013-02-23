@@ -11,8 +11,8 @@ module.exports = function(grunt) {
         watch: {
             scripts: {
                 files: [
-                  "include/*.js", "include/ogg/*.js",
-                  "src/*.js", "test/*.js"
+                    "include/*.js", "include/ogg/*.js",
+                    "src/*.js", "test/*.js"
                 ],
                 tasks: ["concat", "jshint", "uglify"],
                 options: {
@@ -24,9 +24,10 @@ module.exports = function(grunt) {
             dist: {
                 src: [
                     "build/header.txt",
-                    "include/*.js",
-                    "include/**/*.js",
+                    "include/stdlib.js",
+                    "include/ogg/ogg.h.js",
                     "src/*.js",
+                    "include/exports.js",
                     "build/footer.txt"
                 ],
                 dest: "libogg.dev.js"
