@@ -1,0 +1,6 @@
+if (typeof module !== "undefined" && module.exports) {
+    module.exports = exports;
+} else if (typeof window !== "undefined") {
+    window.ogg = exports.ogg;
+}
+})();
