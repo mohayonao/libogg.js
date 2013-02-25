@@ -7,7 +7,7 @@
     "type": "git",
     "url": "https://github.com/mohayonao/libogg.js.git"
   },
-  "main": "libogg.js",
+  "main": "libogg.dev.js",
   "licenses": [
     {
       "type": "MIT",
