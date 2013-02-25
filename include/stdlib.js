@@ -9,7 +9,7 @@ function int(x) {
 
 function pointer(src, offset, length) {
   offset = (src.byteOffset + offset) * src.constructor.BYTES_PER_ELEMENT;
-  if (length) {
+  if (typeof length === "number") {
     return new src.constructor(src.buffer, offset, length);
   } else {
     return new src.constructor(src.buffer, offset);
