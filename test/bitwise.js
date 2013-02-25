@@ -1,40 +1,7 @@
 "use strict";
 
-// stdio.h
-var stderr = [];
-function exit(id) {
-  var str;
-  if (stderr.length) {
-    str = stderr.splice(0).join("");
-    if (str[str.length-1] === "\n") {
-      str = str.substr(0, str.length - 1);
-    }
-    console.log(str);
-  }
-  process.exit(id);
-}
-function fprintf(stream, format) {
-  var argv = Array.prototype.slice.call(arguments, 2);
-  var str = format.replace(/%(\d+)?([ldxcs]+)/g, function(m, num, chr) {
-    var val = argv.shift();
-    switch (chr) {
-    case "c":
-      val = String.fromCharCode(val);
-      break;
-    case "x":
-      val = "0x" + val.toString(16);
-      break;
-    }
-    return val;
-  });
-  stream.push(str);
-  if (str[str.length-1] === "\n") {
-    str = stream.splice(0).join("");
-    str = str.substr(0, str.length - 1);
-    console.log(str);
-  }
-}
-
+/*global stderr:true,exit:true,fprintf:true */
+require("./stdio.h.js");
 
 // SELFTEST ////////////////////////////////////////////////////////////////////
 var libogg = require("../libogg.dev.js");
