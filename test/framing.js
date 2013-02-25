@@ -7,9 +7,9 @@ require("./stdio.h.js");
 var libogg = require("../libogg.dev.js");
 var ogg = libogg.ogg;
 
-var syncState = new ogg.SyncState();
-var streamStateEnc = new ogg.StreamState();
-var streamStateDec = new ogg.StreamState();
+var os_en = new ogg.StreamState();
+var os_de = new ogg.StreamState();
+var oy = new ogg.SyncState();
 
 var sequence = 0;
 var lastno = 0;
@@ -473,9 +473,9 @@ function test_pack(pl, headers, byteskip, pageskip, packetskip) {
   var bosflag = 0;
   var byteskipcount = 0;
   
-  streamStateEnc.reset();
-  streamStateDec.reset();
-  syncState.reset();
+  os_en.reset();
+  os_de.reset();
+  oy.reset();
   
   for (packets = 0; packets < packetskip; packets++) {
     depacket += pl[packets];
@@ -488,13 +488,13 @@ function test_pack(pl, headers, byteskip, pageskip, packetskip) {
   
   for (i = 0; i < packets; i++) {
     /* construct a test packet */
-    var packet = new ogg.Packet();
+    var op = new ogg.Packet();
     var len = pl[i];
     
-    packet.packet = new Uint8Array(data.buffer, data.byteOffset + inptr, len);
-    packet.bytes  = len;
-    packet.e_o_s = (pl[i+1] < 0 ? 1 : 0);
-    packet.granulepos = granule_pos;
+    op.packet = pointer(data, inptr, len);
+    op.bytes  = len;
+    op.e_o_s = (pl[i+1] < 0 ? 1 : 0);
+    op.granulepos = granule_pos;
     
     granule_pos += 1024;
     
@@ -503,13 +503,13 @@ function test_pack(pl, headers, byteskip, pageskip, packetskip) {
     }
     
     /* submit the test packet */
-    streamStateEnc.packetin(packet);
+    os_en.packetin(op);
     
     /* retrieve any finished pages */
     {
       var page = new ogg.Page();
       
-      while (streamStateEnc.pageout(page)) {
+      while (os_en.pageout(page)) {
         /* We have a page.  Check it carefully */
         
         fprintf(stderr,"%ld, ",pageno);
@@ -536,9 +536,9 @@ function test_pack(pl, headers, byteskip, pageskip, packetskip) {
         /* have a complete page; submit it to sync/decode */
 
         {
-          var pageDec = new ogg.Page();
-          var packetDec = new ogg.Packet(), packetDec2 = new ogg.Packet();
-          var buf = syncState.buffer(page.header_len + page.body_len);
+          var og_de = new ogg.Page();
+          var op_de = new ogg.Packet(), op_de2 = new ogg.Packet();
+          var buf = oy.buffer(page.header_len + page.body_len);
           var next = buf;
           byteskipcount += page.header_len;
           if (byteskipcount > byteskip) {
@@ -554,10 +554,10 @@ function test_pack(pl, headers, byteskip, pageskip, packetskip) {
             byteskipcount = byteskip;
           }
 
-          syncState.wrote(next.byteOffset);
+          oy.wrote(next.byteOffset);
           
           while (1) {
-            var ret = syncState.pageout(pageDec);
+            var ret = oy.pageout(og_de);
             if (ret === 0) { break; }
             if (ret < 0) { continue; }
             /* got a page.  Happy happy.  Verify that it's good. */
@@ -565,22 +565,22 @@ function test_pack(pl, headers, byteskip, pageskip, packetskip) {
             fprintf(stderr,"(%d), ",pageout);
             
             check_page(
-              new Uint8Array(data.buffer, data.byteOffset + deptr, pageDec.body_len),
+              new Uint8Array(data.buffer, data.byteOffset + deptr, og_de.body_len),
               headers[pageout],
-              pageDec
+              og_de
             );
-            deptr += pageDec.body_len;
+            deptr += og_de.body_len;
             pageout++;
             
             /* submit it to deconstitution */
-            streamStateDec.pagein(pageDec);
+            os_de.pagein(og_de);
             
             /* packets out? */
-            while (streamStateDec.packetpeek(packetDec2) > 0) {
-              streamStateDec.packetout(packetDec); /* just catching them all */
+            while (os_de.packetpeek(op_de2) > 0) {
+              os_de.packetout(op_de); /* just catching them all */
               
               /* verify peek and out match */
-              if (memcmp(packetDec, packetDec2)) {
+              if (memcmp(op_de, op_de2)) {
                 fprintf(stderr,"packetout != packetpeek! pos=%ld\n",
                         depacket);
                 exit(1);
@@ -588,23 +588,23 @@ function test_pack(pl, headers, byteskip, pageskip, packetskip) {
               
               /* verify the packet! */
               /* check data */
-              if (memcmp(pointer(data,depacket),packetDec.packet,packetDec.bytes)) {
+              if (memcmp(pointer(data,depacket),op_de.packet,op_de.bytes)) {
                 fprintf(stderr,"packet data mismatch in decode! pos=%ld\n",
                         depacket);
                 exit(1);
               }
               
               /* check bos flag */
-              if (bosflag === 0 && packetDec.b_o_s === 0) {
+              if (bosflag === 0 && op_de.b_o_s === 0) {
                 fprintf(stderr,"b_o_s flag not set on packet!\n");
                 exit(1);
               }
-              if (bosflag && packetDec.b_o_s) {
+              if (bosflag && op_de.b_o_s) {
                 fprintf(stderr,"b_o_s flag incorrectly set on packet!\n");
                 exit(1);
               }
               bosflag = 1;
-              depacket += packetDec.bytes;
+              depacket += op_de.bytes;
               
               /* check eos flag */
               if (eosflag) {
@@ -612,13 +612,13 @@ function test_pack(pl, headers, byteskip, pageskip, packetskip) {
                 exit(1);
               }
 
-              if (packetDec.e_o_s) {
+              if (op_de.e_o_s) {
                 eosflag = 1;
               }
               
               /* check granulepos flag */
-              if (packetDec.granulepos !== -1) {
-                fprintf(stderr," granule:%ld ",packetDec.granulepos);
+              if (op_de.granulepos !== -1) {
+                fprintf(stderr," granule:%ld ",op_de.granulepos);
               }
             }
           }
@@ -656,9 +656,9 @@ function test_pack(pl, headers, byteskip, pageskip, packetskip) {
 }
 
 function main() {
-  streamStateEnc.init(0x04030201);
-  streamStateDec.init(0x04030201);
-  syncState.init();
+  os_en.init(0x04030201);
+  os_de.init(0x04030201);
+  oy.init();
   
   var packets, headret;
 
@@ -794,7 +794,7 @@ function main() {
     var og = [new ogg.Page(), new ogg.Page(), new ogg.Page(),
               new ogg.Page(), new ogg.Page()];
     
-    streamStateEnc.reset();
+    os_en.reset();
     
     for (i = 0; pl[i] !== -1 ; i++) {
       var op = new ogg.Packet();
@@ -808,14 +808,14 @@ function main() {
       for (j = 0; j < len; j++) {
         data[inptr++] = i+j;
       }
-      streamStateEnc.packetin(op);
+      os_en.packetin(op);
     }
     
     data = null;
     
     /* retrieve finished pages */
     for (i = 0; i < 5; i++) {
-      if (streamStateEnc.pageout(og[i]) === 0) {
+      if (os_en.pageout(og[i]) === 0) {
         fprintf(stderr,"Too few pages output building sync tests!\n");
         exit(1);
       }
@@ -831,45 +831,45 @@ function main() {
       
       fprintf(stderr,"Testing loss of pages... ");
       
-      syncState.reset();
-      streamStateDec.reset();
+      oy.reset();
+      os_de.reset();
       for (i = 0; i < 5; i++) {
-        buffer = syncState.buffer(og[i].header_len);
+        buffer = oy.buffer(og[i].header_len);
         buffer.set(og[i].header);
-        syncState.wrote(og[i].header_len);
-        buffer = syncState.buffer(og[i].body_len);
+        oy.wrote(og[i].header_len);
+        buffer = oy.buffer(og[i].body_len);
         buffer.set(og[i].body);
-        syncState.wrote(og[i].body_len);
+        oy.wrote(og[i].body_len);
       }
       
-      syncState.pageout(temp);
-      streamStateDec.pagein(temp);
-      syncState.pageout(temp);
-      streamStateDec.pagein(temp);
-      syncState.pageout(temp);
+      oy.pageout(temp);
+      os_de.pagein(temp);
+      oy.pageout(temp);
+      os_de.pagein(temp);
+      oy.pageout(temp);
       /* skip */
-      syncState.pageout(temp);
-      streamStateDec.pagein(temp);
+      oy.pageout(temp);
+      os_de.pagein(temp);
       
       /* do we get the expected results/packets? */
 
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,0,0,0);
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,1,1,-1);
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,1,2,-1);
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,98,3,-1);
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,4079,4,5000);
-      if (streamStateDec.packetout(test) !== -1){
+      if (os_de.packetout(test) !== -1){
         fprintf(stderr,"Error: loss of page did not return error\n");
         exit(1);
       }
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,76,9,-1);
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,34,10,-1);
       fprintf(stderr,"ok.\n");
     }
@@ -881,210 +881,210 @@ function main() {
       
       fprintf(stderr,"Testing loss of pages (rollback required)... ");
       
-      syncState.reset();
-      streamStateDec.reset();
+      oy.reset();
+      os_de.reset();
       for (i = 0;i < 5; i++) {
-        buffer = syncState.buffer(og[i].header_len);
+        buffer = oy.buffer(og[i].header_len);
         buffer.set(og[i].header);
-        syncState.wrote(og[i].header_len);
+        oy.wrote(og[i].header_len);
         
-        buffer = syncState.buffer(og[i].body_len);
+        buffer = oy.buffer(og[i].body_len);
         buffer.set(og[i].body);
-        syncState.wrote(og[i].body_len);
+        oy.wrote(og[i].body_len);
       }
       
-      syncState.pageout(temp);
-      streamStateDec.pagein(temp);
-      syncState.pageout(temp);
-      streamStateDec.pagein(temp);
-      syncState.pageout(temp);
-      streamStateDec.pagein(temp);
-      syncState.pageout(temp);
+      oy.pageout(temp);
+      os_de.pagein(temp);
+      oy.pageout(temp);
+      os_de.pagein(temp);
+      oy.pageout(temp);
+      os_de.pagein(temp);
+      oy.pageout(temp);
       /* skip */
-      syncState.pageout(temp);
-      streamStateDec.pagein(temp);
+      oy.pageout(temp);
+      os_de.pagein(temp);
       
       /* do we get the expected results/packets? */
       
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,0,0,0);
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,1,1,-1);
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,1,2,-1);
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,98,3,-1);
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,4079,4,5000);
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,1,5,-1);
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,1,6,-1);
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,2954,7,-1);
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,2057,8,9000);
-      if (streamStateDec.packetout(test) !== -1){
+      if (os_de.packetout(test) !== -1){
         fprintf(stderr,"Error: loss of page did not return error\n");
         exit(1);
       }
-      if (streamStateDec.packetout(test) !== 1) { error(); }
+      if (os_de.packetout(test) !== 1) { error(); }
       checkpacket(test,300,17,18000);
       fprintf(stderr,"ok.\n");
     }
     
-    var pageDec;
+    var og_de;
     /* the rest only test sync */
     {
-      pageDec = new ogg.Page();
+      og_de = new ogg.Page();
       /* Test fractional page inputs: incomplete capture */
       fprintf(stderr,"Testing sync on partial inputs... ");
-      syncState.reset();
-      buffer = syncState.buffer(og[1].header_len);
+      oy.reset();
+      buffer = oy.buffer(og[1].header_len);
       buffer.set(og[1].header.subarray(0, 0+3));
       
-      syncState.wrote(3);
-      if (syncState.pageout(pageDec) > 0) { error(); }
+      oy.wrote(3);
+      if (oy.pageout(og_de) > 0) { error(); }
       
       /* Test fractional page inputs: incomplete fixed header */
-      buffer = syncState.buffer(og[1].header_len);
+      buffer = oy.buffer(og[1].header_len);
       buffer.set(og[1].header.subarray(3, 3+20));
-      syncState.wrote(20);
-      if (syncState.pageout(pageDec) > 0) { error(); }
+      oy.wrote(20);
+      if (oy.pageout(og_de) > 0) { error(); }
       
       /* Test fractional page inputs: incomplete header */
-      buffer = syncState.buffer(og[1].header_len);
+      buffer = oy.buffer(og[1].header_len);
       buffer.set(og[1].header.subarray(23, 23+5));
-      syncState.wrote(5);
-      if (syncState.pageout(pageDec) > 0) { error(); }
+      oy.wrote(5);
+      if (oy.pageout(og_de) > 0) { error(); }
       
       /* Test fractional page inputs: incomplete body */
-      buffer = syncState.buffer(og[1].header_len);
+      buffer = oy.buffer(og[1].header_len);
       buffer.set(og[1].header.subarray(28));
-      syncState.wrote(og[1].header_len-28);
-      if (syncState.pageout(pageDec) > 0) { error(); }
+      oy.wrote(og[1].header_len-28);
+      if (oy.pageout(og_de) > 0) { error(); }
       
-      buffer = syncState.buffer(og[1].body_len);
+      buffer = oy.buffer(og[1].body_len);
       buffer.set(og[1].body.subarray(0, 1000));
-      syncState.wrote(1000);
-      if (syncState.pageout(pageDec) > 0) { error(); }
+      oy.wrote(1000);
+      if (oy.pageout(og_de) > 0) { error(); }
 
-      buffer = syncState.buffer(og[1].body_len);
+      buffer = oy.buffer(og[1].body_len);
       buffer.set(og[1].body.subarray(1000));
-      syncState.wrote(og[1].body_len-1000);
-      if (syncState.pageout(pageDec) <= 0) { error(); }
+      oy.wrote(og[1].body_len-1000);
+      if (oy.pageout(og_de) <= 0) { error(); }
       
       fprintf(stderr,"ok.\n");
     }
     
     /* Test fractional page inputs: page + incomplete capture */
     {
-      pageDec = new ogg.Page();
+      og_de = new ogg.Page();
       fprintf(stderr,"Testing sync on 1+partial inputs... ");
-      syncState.reset();
+      oy.reset();
 
-      buffer = syncState.buffer(og[1].header_len);
+      buffer = oy.buffer(og[1].header_len);
       buffer.set(og[1].header);
-      syncState.wrote(og[1].header_len);
+      oy.wrote(og[1].header_len);
 
-      buffer = syncState.buffer(og[1].body_len);
+      buffer = oy.buffer(og[1].body_len);
       buffer.set(og[1].body);
-      syncState.wrote(og[1].body_len);
+      oy.wrote(og[1].body_len);
 
-      buffer = syncState.buffer(og[1].header_len);
+      buffer = oy.buffer(og[1].header_len);
       buffer.set(og[1].header.subarray(0, 20));
-      syncState.wrote(20);
-      if (syncState.pageout(pageDec) <= 0) { error(); }
-      if (syncState.pageout(pageDec) >  0) { error(); }
+      oy.wrote(20);
+      if (oy.pageout(og_de) <= 0) { error(); }
+      if (oy.pageout(og_de) >  0) { error(); }
 
-      buffer = syncState.buffer(og[1].header_len);
+      buffer = oy.buffer(og[1].header_len);
       buffer.set(og[1].header.subarray(20));
-      syncState.wrote(og[1].header_len-20);
+      oy.wrote(og[1].header_len-20);
 
-      buffer = syncState.buffer(og[1].body_len);
+      buffer = oy.buffer(og[1].body_len);
       buffer.set(og[1].body);
-      syncState.wrote(og[1].body_len);
-      if (syncState.pageout(pageDec) <= 0) { error(); }
+      oy.wrote(og[1].body_len);
+      if (oy.pageout(og_de) <= 0) { error(); }
       
       fprintf(stderr,"ok.\n");
     }
     
     /* Test recapture: garbage + page */
     {
-      pageDec = new ogg.Page();
+      og_de = new ogg.Page();
       fprintf(stderr,"Testing search for capture... ");
-      syncState.reset();
+      oy.reset();
       
       /* 'garbage' */
-      buffer = syncState.buffer(og[1].body_len);
+      buffer = oy.buffer(og[1].body_len);
       buffer.set(og[1].body);
-      syncState.wrote(og[1].body_len);
+      oy.wrote(og[1].body_len);
       
-      buffer = syncState.buffer(og[1].header_len);
+      buffer = oy.buffer(og[1].header_len);
       buffer.set(og[1].header);
-      syncState.wrote(og[1].header_len);
+      oy.wrote(og[1].header_len);
 
-      buffer = syncState.buffer(og[1].body_len);
+      buffer = oy.buffer(og[1].body_len);
       buffer.set(og[1].body);
-      syncState.wrote(og[1].body_len);
+      oy.wrote(og[1].body_len);
 
-      buffer = syncState.buffer(og[2].header_len);
+      buffer = oy.buffer(og[2].header_len);
       buffer.set(og[2].header.subarray(0, 20));
-      syncState.wrote(20);
-      if (syncState.pageout(pageDec) >  0) { error(); }
-      if (syncState.pageout(pageDec) <= 0) { error(); }
-      if (syncState.pageout(pageDec) >  0) { error(); }
+      oy.wrote(20);
+      if (oy.pageout(og_de) >  0) { error(); }
+      if (oy.pageout(og_de) <= 0) { error(); }
+      if (oy.pageout(og_de) >  0) { error(); }
 
-      buffer = syncState.buffer(og[2].header_len);
+      buffer = oy.buffer(og[2].header_len);
       buffer.set(og[2].header.subarray(20));
-      syncState.wrote(og[2].header_len-20);
+      oy.wrote(og[2].header_len-20);
 
-      buffer = syncState.buffer(og[2].body_len);
+      buffer = oy.buffer(og[2].body_len);
       buffer.set(og[2].body);
-      syncState.wrote(og[2].body_len);
-      if (syncState.pageout(pageDec) <= 0) { error(); }
+      oy.wrote(og[2].body_len);
+      if (oy.pageout(og_de) <= 0) { error(); }
       
       fprintf(stderr,"ok.\n");
     }
     
     /* Test recapture: page + garbage + page */
     {
-      pageDec = new ogg.Page();
+      og_de = new ogg.Page();
       fprintf(stderr,"Testing recapture... ");
-      syncState.reset();
+      oy.reset();
 
-      buffer = syncState.buffer(og[1].header_len);
+      buffer = oy.buffer(og[1].header_len);
       buffer.set(og[1].header);
-      syncState.wrote(og[1].header_len);
+      oy.wrote(og[1].header_len);
 
-      buffer = syncState.buffer(og[1].body_len);
+      buffer = oy.buffer(og[1].body_len);
       buffer.set(og[1].body);
-      syncState.wrote(og[1].body_len);
+      oy.wrote(og[1].body_len);
 
-      buffer = syncState.buffer(og[2].header_len);
+      buffer = oy.buffer(og[2].header_len);
       buffer.set(og[2].header);
-      syncState.wrote(og[2].header_len);
+      oy.wrote(og[2].header_len);
 
-      buffer = syncState.buffer(og[2].header_len);
+      buffer = oy.buffer(og[2].header_len);
       buffer.set(og[2].header);
-      syncState.wrote(og[2].header_len);
+      oy.wrote(og[2].header_len);
       
-      if (syncState.pageout(pageDec) <= 0) { error(); }
+      if (oy.pageout(og_de) <= 0) { error(); }
 
-      buffer = syncState.buffer(og[2].body_len);
+      buffer = oy.buffer(og[2].body_len);
       buffer.set(og[2].body.subarray(0, og[2].body_len-5));
-      syncState.wrote(og[2].body_len-5);
+      oy.wrote(og[2].body_len-5);
 
-      buffer = syncState.buffer(og[3].header_len);
+      buffer = oy.buffer(og[3].header_len);
       buffer.set(og[3].header);
-      syncState.wrote(og[3].header_len);
+      oy.wrote(og[3].header_len);
 
-      buffer = syncState.buffer(og[3].body_len);
+      buffer = oy.buffer(og[3].body_len);
       buffer.set(og[3].body);
-      syncState.wrote(og[3].body_len);
+      oy.wrote(og[3].body_len);
       
-      if (syncState.pageout(pageDec) >  0) { error(); }
-      if (syncState.pageout(pageDec) <= 0) { error(); }
+      if (oy.pageout(og_de) >  0) { error(); }
+      if (oy.pageout(og_de) <= 0) { error(); }
       
       fprintf(stderr,"ok.\n");
     }
