@@ -1,17 +1,18 @@
-function ogg_iovec_t(iov) {
-  iov = iov || {};
+function ogg_iovec_t(p) {
+  p = p||{};
   
   // void *iov_base;
   // size_t iov_len;
   
-  iov.iov_base = null;
-  iov.iov_len = 0;
+  p.iov_base = null;
+  p.iov_len = 0;
+  p.__name = "ogg_iovec_t";
   
-  return iov;
+  return p;
 }
 
-function oggpack_buffer(b) {
-  b = b || {};
+function oggpack_buffer(p) {
+  p = p||{};
   
   // long endbyte;
   // int  endbit;
@@ -20,36 +21,38 @@ function oggpack_buffer(b) {
   // unsigned char *ptr;
   // long storage;
   
-  b.endbyte = 0;
-  b.endbit = 0;
-  b.buffer = null;
-  b.ptr = null;
-  b.state = 0;
+  p.endbyte = 0;
+  p.endbit = 0;
+  p.buffer = null;
+  p.ptr = null;
+  p.state = 0;
+  p.__name = "oggpack_buffer";
   
-  return b;
+  return p;
 }
 
 /* ogg_page is used to encapsulate the data in one Ogg bitstream page *****/
-function ogg_page(og) {
-  og = og || {};
+function ogg_page(p) {
+  p = p||{};
   
   // unsigned char *header;
   // long header_len;
   // unsigned char *body;
   // long body_len;
   
-  og.header = null;
-  og.header_len = 0;
-  og.body = null;
-  og.body_len = 0;
+  p.header = null;
+  p.header_len = 0;
+  p.body = null;
+  p.body_len = 0;
+  p.__name = "ogg_page";
   
-  return og;
+  return p;
 }
 
 /* ogg_stream_state contains the current encode/decode state of a logical
    Ogg bitstream **********************************************************/
-function ogg_stream_state(os) {
-  os = os || {};
+function ogg_stream_state(p) {
+  p = p||{};
   
   // unsigned char   *body_data;    /* bytes from packet bodies */
   // long    body_storage;          /* storage elements allocated */
@@ -82,32 +85,33 @@ function ogg_stream_state(os) {
   //                            layer) also knows about the gap */
   // ogg_int64_t   granulepos;
   
-  os.body_data = null;
-  os.body_storage = 0;
-  os.body_fill = 0;
-  os.body_returned = 0;
-  os.lacing_vals  = null;
-  os.granule_vals = null;
-  os.lacing_storage = 0;
-  os.lacing_fill = 0;
-  os.lacing_packet = 0;
-  os.lacing_returned = 0;
-  os.header = calloc(282, uint8);
-  os.header_fill = 0;
-  os.e_o_s = 0;
-  os.b_o_s = 0;
-  os.serialno = 0;
-  os.pageno = 0;
-  os.packetno = 0;
-  os.granulepos = 0;
+  p.body_data = null;
+  p.body_storage = 0;
+  p.body_fill = 0;
+  p.body_returned = 0;
+  p.lacing_vals  = null;
+  p.granule_vals = null;
+  p.lacing_storage = 0;
+  p.lacing_fill = 0;
+  p.lacing_packet = 0;
+  p.lacing_returned = 0;
+  p.header = calloc(282, uint8);
+  p.header_fill = 0;
+  p.e_o_s = 0;
+  p.b_o_s = 0;
+  p.serialno = 0;
+  p.pageno = 0;
+  p.packetno = 0;
+  p.granulepos = 0;
+  p.__name = "ogg_stream_state";
   
-  return os;
+  return p;
 }
 
 /* ogg_packet is used to encapsulate the data and metadata belonging
    to a single raw Ogg/Vorbis packet *************************************/
-function ogg_packet(op) {
-  op = op || {};
+function ogg_packet(p) {
+  p = p||{};
   
   // unsigned char *packet;
   // long  bytes;
@@ -122,18 +126,19 @@ function ogg_packet(op) {
   //                               (which is in a separate abstraction
   //                               layer) also knows about the gap */
   
-  op.packet = null;
-  op.bytes = 0;
-  op.b_o_s = 0;
-  op.e_o_s = 0;
-  op.granulepos = 0;
-  op.packetno = 0;
+  p.packet = null;
+  p.bytes = 0;
+  p.b_o_s = 0;
+  p.e_o_s = 0;
+  p.granulepos = 0;
+  p.packetno = 0;
+  p.__name = "ogg_packet";
   
-  return op;
+  return p;
 }
 
-function ogg_sync_state(oy) {
-  oy = oy || {};
+function ogg_sync_state(p) {
+  p = p||{};
   
   // unsigned char *data;
   // int storage;
@@ -144,13 +149,14 @@ function ogg_sync_state(oy) {
   // int headerbytes;
   // int bodybytes;
 
-  oy.data = null;
-  oy.storage = 0;
-  oy.fill = 0;
-  oy.returned = 0;
-  oy.unsynced = 0;
-  oy.headerbytes = 0;
-  oy.bodybytes = 0;
+  p.data = null;
+  p.storage = 0;
+  p.fill = 0;
+  p.returned = 0;
+  p.unsynced = 0;
+  p.headerbytes = 0;
+  p.bodybytes = 0;
+  p.__name = "ogg_sync_state";
   
-  return oy;
+  return p;
 }
