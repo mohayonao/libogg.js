@@ -246,7 +246,7 @@ function ogg_stream_iovecin(os, iov, count, e_o_s, granulepos) {
   if(!iov) return 0;
   
   for (i = 0; i < count; ++i) bytes += iov[i].iov_len;
-  lacing_vals=_int(bytes/255)+1;
+  lacing_vals=int(bytes/255)+1;
   
   if(os.body_returned){
     /* advance packet data according to the body_returned pointer. We

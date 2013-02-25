@@ -3,7 +3,7 @@ var NULL = null;
 function NOP() {}
 function NOT_IMPLEMENTED() { throw new Error("not implemented."); }
 
-function _int(x) {
+function int(x) {
   return x|0;
 }
 

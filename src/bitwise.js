@@ -69,7 +69,7 @@ function oggpack_write(b, value, bits) {
       }
     }
     
-    var shift=_int(bits/8);
+    var shift=int(bits/8);
     b.endbyte+=shift;
     b.ptr=pointer(b.ptr,shift);
     b.endbit=bits&7;
@@ -89,7 +89,7 @@ function oggpack_writealign(b) {
 function oggpack_writecopy(b, source, bits) {
   var ptr=source;
   
-  var bytes=_int(bits/8);
+  var bytes=int(bits/8);
   bits-=bytes*8;
 
   err:while(1){
@@ -185,7 +185,7 @@ function oggpack_adv(b, bits) {
   err:while(1){
     if(b.endbyte > b.storage-((bits+7)>>3)) break err;
     
-    var shift=_int(bits/8);
+    var shift=int(bits/8);
     b.ptr=pointer(b.ptr,shift);
     b.endbyte+=shift;
     b.endbit=bits&7;
@@ -238,7 +238,7 @@ function oggpack_read(b, bits) {
     }
     ret&=m;
     
-    var shift=_int(bits/8);
+    var shift=int(bits/8);
     b.ptr=pointer(b.ptr,shift);
     b.endbyte+=shift;
     b.endbit=bits&7;
@@ -277,7 +277,7 @@ function oggpack_read1(b) {
 }
 
 function oggpack_bytes(b) {
-  return(b.endbyte+_int((b.endbit+7)/8));
+  return(b.endbyte+int((b.endbit+7)/8));
 }
 
 function oggpack_bits(b) {
