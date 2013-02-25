@@ -2,17 +2,9 @@
 
 var util = require("util");
 
-var stderr = global.stderr = [];
+var stderr = global.stderr = 0;
 
 function exit(id) {
-  var str;
-  if (stderr.length) {
-    str = stderr.splice(0).join("");
-    if (str[str.length-1] === "\n") {
-      str = str.substr(0, str.length - 1);
-    }
-    console.log(str);
-  }
   process.exit(id);
 }
 global.exit = exit;
