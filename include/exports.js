@@ -1,11 +1,11 @@
 function OggPackBuffer() {
   oggpack_buffer(this);
   
-  this.writeinit  = oggpack_writeinit.bind(null, this);
+  this.writeinit = oggpack_writeinit.bind(null, this);
   this.writecheck = oggpack_writecheck.bind(null, this);
   this.writetrunc = oggpack_writetrunc.bind(null, this);
   this.writealign = oggpack_writealign.bind(null, this);
-  this.writecopy  = oggpack_writecopy .bind(null, this);
+  this.writecopy = oggpack_writecopy.bind(null, this);
   this.reset = oggpack_reset.bind(null, this);
   this.writeclear = oggpack_writeclear.bind(null, this);
   this.readinit = oggpack_readinit.bind(null, this);
@@ -49,7 +49,7 @@ function OggStreamState() {
   this.flush = ogg_stream_flush.bind(null, this);
   this.flush_fill = ogg_stream_flush_fill.bind(null, this);
   this.pagein = ogg_stream_pagein.bind(null, this);
-  this.packetout  = ogg_stream_packetout.bind(null, this);
+  this.packetout = ogg_stream_packetout.bind(null, this);
   this.packetpeek = ogg_stream_packetpeek.bind(null, this);
   this.init = ogg_stream_init.bind(null, this);
   this.clear = ogg_stream_clear.bind(null, this);
