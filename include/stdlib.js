@@ -8,7 +8,7 @@ function int(x) {
 }
 
 function pointer(src, offset, length) {
-  offset = (src.byteOffset + offset) * src.constructor.BYTES_PER_ELEMENT;
+  offset = (src.byteOffset + offset) * src.BYTES_PER_ELEMENT;
   if (typeof length === "number") {
     return new src.constructor(src.buffer, offset, length);
   } else {
@@ -19,8 +19,8 @@ function pointer(src, offset, length) {
 var uint8 = 0;
 var int32 = 1;
 
-function calloc(n, size) {
-  switch (size) {
+function calloc(n, type) {
+  switch (type) {
   case uint8: return new Uint8Array(n);
   case int32: return new Int32Array(n);
   }
