@@ -11,12 +11,15 @@ module.exports = function(grunt) {
     watch: {
       scripts: {
         files: ["include/*.js", "include/ogg/*.js", "src/*.js"],
-               
         tasks: ["concat", "jshint:dest", "uglify"]
       },
-      tests: {
+      test: {
         files: ["test/*.js"],
-        tasks: ["concat", "jshint:test", "uglify"]
+        tasks: ["jshint:test"]
+      },
+      examples: {
+        files: ["examples/*.js"],
+        tasks: ["jshint:examples"]
       }
     },
     concat: {
@@ -35,6 +38,7 @@ module.exports = function(grunt) {
     jshint: {
       dest: ["libogg.dev.js"],
       test: ["test/*.js"],
+      examples: ["examples/*.js"],
       options: {
         curly   : false,
         eqeqeq  : true,
