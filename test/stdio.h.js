@@ -2,7 +2,11 @@
 
 var util = require("util");
 
-var stderr = global.stderr = 0;
+var stdin  = global.stdin  = {fp:null};
+var stdout = global.stdout = {fp:null};
+var stderr = global.stderr = {fp:null};
+
+global.NULL = null;
 
 function exit(id) {
   process.exit(id);
@@ -23,9 +27,35 @@ function fprintf(stream, format) {
     }
     return val;
   });
-  util.print(str);
+  if (stream === stdout) {
+    if (!stdout.fp) {
+      util.print(str);
+    }
+  } else {
+    if (!stderr.fp) {
+      util.print(str);
+    }
+  }
 }
 global.fprintf = fprintf;
+
+function printf() {
+  var args = Array.prototype.slice.call(arguments);
+  args.unshift(stdout);
+  fprintf.apply(null, args);
+}
+global.printf = printf;
+
+function fread(buf, size, n, fp) {
+  if (fp.fp) {
+    n = Math.min(n, fp.fp.length);
+    buf.set(fp.fp.subarray(0, n));
+    fp.fp = new Uint8Array(fp.fp.buffer, fp.fp.byteOffset + n);
+    return n;
+  }
+  throw new Error("cannot fread.");
+}
+global.fread = fread;
 
 function memcmp(obj1, obj2, n) {
   var i;
